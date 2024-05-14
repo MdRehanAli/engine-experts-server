@@ -30,13 +30,13 @@ const client = new MongoClient(uri, {
 
 
 // Middlewares 
-const logger = async (req, res, next) => {
-    console.log('called', req.host, req.originalUrl)
+const logger = (req, res, next) => {
+    console.log('log: info', req.host, req.originalUrl)
     next()
 }
 
-const verifyToken = async (req, res, next) => {
-    const token = req.cookies?.token
+const verifyToken = (req, res, next) => {
+    const token = req?.cookies?.token
     console.log('Value of token in middleware', token)
 
     if (!token) {
@@ -77,8 +77,15 @@ async function run() {
                 .cookie('token', token, {
                     httpOnly: true,
                     secure: false,
+                    // sameSite: 'none'
                 })
                 .send({ success: true })
+        })
+
+        app.post('/logout', async (req, res) => {
+            const user = req.body
+            console.log('logging out', user)
+            res.clearCookie('token', { maxAge: 0 }).send({ success: true })
         })
 
 
@@ -91,11 +98,6 @@ async function run() {
 
         app.get('/services/:id', async (req, res) => {
             const id = req.params.id
-
-            if (req.query.email !== req.user.email){
-                return res.status(403).send({message: 'Forebidden access'})
-            }
-
             const query = { _id: new ObjectId(id) }
 
             const options = {
@@ -115,6 +117,9 @@ async function run() {
 
             // console.log('Token', req.cookies.token)
             console.log('user in the valid token', req.user)
+            if (req.user.email !== req.query.email) {
+                return res.status(403).send({ message: 'Forebidden access' })
+            }
             let query = {};
             if (req.query?.email) {
                 query = { email: req.query.email }
